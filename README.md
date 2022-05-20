@@ -1,2 +1,2 @@
 # hackernews
-API for a HackerNews clone using GraphQL
+API for a HackerNews clone using GraphQL.

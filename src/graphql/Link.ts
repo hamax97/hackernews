@@ -6,16 +6,12 @@ export const Link = objectType({
     t.nonNull.int("id");
     t.nonNull.string("description");
     t.nonNull.string("url");
-  },
-});
-
-export const LinkQueryFeed = extendType({
-  type: "Query",
-  definition(t) {
-    t.nonNull.list.nonNull.field("feed", {
-      type: "Link",
-      resolve(parent, args, context, info) {
-        return context.prisma.link.findMany();
+    t.field("postedBy", {
+      type: "User",
+      resolve(parent, args, context) {
+        return context.prisma.link
+          .findUnique({ where: { id: parent.id } })
+          .postedBy();
       },
     });
   },
@@ -24,6 +20,13 @@ export const LinkQueryFeed = extendType({
 export const LinkQuery = extendType({
   type: "Query",
   definition(t) {
+    t.nonNull.list.nonNull.field("feed", {
+      type: "Link",
+      resolve(parent, args, context, info) {
+        return context.prisma.link.findMany();
+      },
+    });
+
     t.field("link", {
       type: "Link",
       args: {
@@ -36,12 +39,7 @@ export const LinkQuery = extendType({
         });
       },
     });
-  },
-});
 
-export const LinkMutationPost = extendType({
-  type: "Mutation",
-  definition(t) {
     t.nonNull.field("post", {
       type: "Link",
       args: {
@@ -65,9 +63,36 @@ export const LinkMutationPost = extendType({
   },
 });
 
-export const LinkMutationUpdate = extendType({
+export const LinkMutation = extendType({
   type: "Mutation",
   definition(t) {
+    t.nonNull.field("post", {
+      type: "Link",
+      args: {
+        description: nonNull(stringArg()),
+        url: nonNull(stringArg()),
+      },
+
+      resolve(parent, args, context) {
+        const { description, url } = args;
+        const { userId } = context;
+
+        if (!userId) {
+          throw new Error("Cannot post without logging in");
+        }
+
+        const newLink = context.prisma.link.create({
+          data: {
+            url,
+            description,
+            postedBy: { connect: { id: userId } },
+          },
+        });
+
+        return newLink;
+      },
+    });
+
     t.field("updateLink", {
       type: "Link",
       args: {
@@ -88,12 +113,7 @@ export const LinkMutationUpdate = extendType({
         });
       },
     });
-  },
-});
 
-export const LinkMutationDelete = extendType({
-  type: "Mutation",
-  definition(t) {
     t.field("deleteLink", {
       type: "Link",
       args: {
